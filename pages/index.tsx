@@ -1,17 +1,107 @@
 import { useState } from "react"
 import Head from "next/head"
-import Link from "next/link"
+import { Loader } from "lucide-react"
 
-import { siteConfig } from "@/config/site"
 import { Layout } from "@/components/layout"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 
 export default function IndexPage() {
   const [taskDescription, setTaskDescription] = useState("")
   const [taskName, setTaskName] = useState("")
-  const [commitMessage, setCommitMessage] = useState("")
+  const [generatedCommits, setGeneratedCommits] = useState("")
+  const [isLoading, setIsLoading] = useState(false)
+  const [numberOfCommits, setNumberOfCommits] = useState(1)
+
+  const createCommit = async () => {
+    setGeneratedCommits("")
+    setIsLoading(true)
+    const promptStart =
+      numberOfCommits < 2
+        ? "Write one commit message with at most 50 characters for the following task:"
+        : `Write ${numberOfCommits} commit messages with at most 50 characters for the following task:`
+    const prompt = `${promptStart}
+    
+    ${taskName}
+
+    ${taskDescription}
+
+    Commit messages:`
+    const response = await fetch("/api/generate", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        prompt,
+      }),
+    })
+    console.log("Edge function returned.")
+    if (!response.ok) {
+      throw new Error(response.statusText)
+    }
+
+    // This data is a ReadableStream
+    const data = response.body
+    if (!data) {
+      return
+    }
+
+    const reader = data.getReader()
+    const decoder = new TextDecoder()
+
+    let done = false
+    let tempState = ""
+
+    while (!done) {
+      const { value, done: doneReading } = await reader.read()
+      done = doneReading
+      const newValue = decoder
+        .decode(value)
+        .replaceAll("data: ", "")
+        .split("\n\n")
+        .filter(Boolean)
+
+      if (tempState) {
+        newValue[0] = tempState + newValue[0]
+        tempState = ""
+      }
+
+      newValue.forEach((newVal) => {
+        if (newVal === "[DONE]") {
+          return
+        }
+
+        try {
+          const json = JSON.parse(newVal) as {
+            id: string
+            object: string
+            created: number
+            choices?: {
+              text: string
+              index: number
+              logprobs: null
+              finish_reason: null | string
+            }[]
+            model: string
+          }
+
+          if (!json.choices?.length) {
+            throw new Error("Something went wrong.")
+          }
+
+          const choice = json.choices[0]
+          setGeneratedCommits((prev) => prev + choice.text)
+        } catch (error) {
+          tempState = newVal
+        }
+      })
+    }
+
+    setIsLoading(false)
+  }
   return (
     <Layout>
       <Head>
@@ -35,6 +125,13 @@ export default function IndexPage() {
           value={taskName}
           onChange={(e) => setTaskName(e.target.value)}
         />
+        <Label htmlFor="numberOfCommits">Number of commits</Label>
+        <Input
+          type="number"
+          value={numberOfCommits}
+          onChange={(e) => setNumberOfCommits(Number(e.target.value))}
+        />
+
         <Textarea
           className="w-full"
           value={taskDescription}
@@ -43,16 +140,24 @@ export default function IndexPage() {
         />
         <div className="flex gap-4">
           <Button
-            onClick={() => {
-              console.log(taskDescription)
-            }}
+            onClick={createCommit}
             className={buttonVariants({
               className: "w-full text-lg",
               size: "lg",
             })}
+            disabled={isLoading}
           >
-            Create Commit
+            {isLoading ? (
+              <Loader className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              "Create Commit"
+            )}
           </Button>
+        </div>
+        <div className="flex flex-col gap-4">
+          {generatedCommits.split("\n").map((commit) => (
+            <div key={commit}>{commit}</div>
+          ))}
         </div>
       </section>
     </Layout>
