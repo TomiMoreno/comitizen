@@ -1,5 +1,6 @@
 import { useState } from "react"
 import Head from "next/head"
+import useLocalStorage from "@/hooks/useLocalStorage"
 import { Loader } from "lucide-react"
 
 import { Layout } from "@/components/layout"
@@ -9,8 +10,16 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 
 export default function IndexPage() {
-  const [taskDescription, setTaskDescription] = useState("")
-  const [taskName, setTaskName] = useState("")
+  const [isLoading, setIsLoading] = useState(false)
+  const [taskDescription, setTaskDescription] = useLocalStorage(
+    "taskDescription",
+    ""
+  )
+  const [taskName, setTaskName] = useLocalStorage("taskName", "")
+  const [numberOfCommits, setNumberOfCommits] = useLocalStorage(
+    "numberOfCommits",
+    1
+  )
   const [generatedCommits, setGeneratedCommits] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [numberOfCommits, setNumberOfCommits] = useState(1)
