@@ -8,6 +8,8 @@ import { Button, buttonVariants } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { Toaster } from "@/components/ui/toaster"
+import { useToast } from "@/components/ui/use-toast"
 
 export default function IndexPage() {
   const [isLoading, setIsLoading] = useState(false)
@@ -21,8 +23,7 @@ export default function IndexPage() {
     1
   )
   const [generatedCommits, setGeneratedCommits] = useState("")
-  const [isLoading, setIsLoading] = useState(false)
-  const [numberOfCommits, setNumberOfCommits] = useState(1)
+  const { toast } = useToast()
 
   const createCommit = async () => {
     setGeneratedCommits("")
@@ -105,6 +106,11 @@ export default function IndexPage() {
           setGeneratedCommits((prev) => prev + choice.text)
         } catch (error) {
           tempState = newVal
+          toast({
+            title: "Error",
+            description: error.message,
+            status: "error",
+          })
         }
       })
     }
@@ -169,6 +175,7 @@ export default function IndexPage() {
           ))}
         </div>
       </section>
+      <Toaster />
     </Layout>
   )
 }
