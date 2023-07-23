@@ -109,7 +109,6 @@ export default function IndexPage() {
           toast({
             title: "Error",
             description: error.message,
-            status: "error",
           })
         }
       })
